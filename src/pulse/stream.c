@@ -1239,7 +1239,8 @@ static int create_stream(
                                               PA_STREAM_START_UNMUTED|
                                               PA_STREAM_FAIL_ON_SUSPEND|
                                               PA_STREAM_RELATIVE_VOLUME|
-                                              PA_STREAM_PASSTHROUGH)), PA_ERR_INVALID);
+                                              PA_STREAM_PASSTHROUGH|
+                                              PA_STREAM_DONT_AUTO_SUSPEND)), PA_ERR_INVALID);
 
     PA_CHECK_VALIDITY(s->context, s->context->version >= 12 || !(flags & PA_STREAM_VARIABLE_RATE), PA_ERR_NOTSUPPORTED);
     PA_CHECK_VALIDITY(s->context, s->context->version >= 13 || !(flags & PA_STREAM_PEAK_DETECT), PA_ERR_NOTSUPPORTED);
@@ -1377,6 +1378,7 @@ static int create_stream(
 
         pa_tagstruct_put_boolean(t, flags & PA_STREAM_DONT_INHIBIT_AUTO_SUSPEND);
         pa_tagstruct_put_boolean(t, flags & PA_STREAM_FAIL_ON_SUSPEND);
+        pa_tagstruct_put_boolean(t, flags & PA_STREAM_DONT_AUTO_SUSPEND);
     }
 
     if (s->context->version >= 17 && s->direction == PA_STREAM_PLAYBACK)

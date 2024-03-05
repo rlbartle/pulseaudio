@@ -349,10 +349,14 @@ typedef enum pa_stream_flags {
      * consider absolute when the sink is in flat volume mode,
      * relative otherwise. \since 0.9.20 */
 
-    PA_STREAM_PASSTHROUGH = 0x80000U
+    PA_STREAM_PASSTHROUGH = 0x80000U,
     /**< Used to tag content that will be rendered by passthrough sinks.
      * The data will be left as is and not reformatted, resampled.
      * \since 1.0 */
+
+    PA_STREAM_DONT_AUTO_SUSPEND = 0x100000U
+    /**< If set this stream won't allow the connected device to auto-suspend
+     * when the stream is corked. \since 14.2 - Axium addition. */
 
 } pa_stream_flags_t;
 
@@ -382,6 +386,7 @@ typedef enum pa_stream_flags {
 #define PA_STREAM_FAIL_ON_SUSPEND PA_STREAM_FAIL_ON_SUSPEND
 #define PA_STREAM_RELATIVE_VOLUME PA_STREAM_RELATIVE_VOLUME
 #define PA_STREAM_PASSTHROUGH PA_STREAM_PASSTHROUGH
+#define PA_STREAM_DONT_AUTO_SUSPEND PA_STREAM_DONT_AUTO_SUSPEND
 
 /** \endcond */
 

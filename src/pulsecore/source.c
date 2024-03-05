@@ -2044,10 +2044,10 @@ unsigned pa_source_check_suspend(pa_source *s, pa_source_output *ignore) {
         if (!PA_SOURCE_OUTPUT_IS_LINKED(o->state))
             continue;
 
-        if (o->state == PA_SOURCE_OUTPUT_CORKED)
+        if (o->state == PA_SOURCE_OUTPUT_CORKED && (o->flags & PA_SOURCE_OUTPUT_DONT_AUTO_SUSPEND) == 0)
             continue;
 
-        if (o->flags & PA_SOURCE_OUTPUT_DONT_INHIBIT_AUTO_SUSPEND)
+        if ((o->flags & (PA_SOURCE_OUTPUT_DONT_INHIBIT_AUTO_SUSPEND | PA_SOURCE_OUTPUT_DONT_AUTO_SUSPEND)) == PA_SOURCE_OUTPUT_DONT_INHIBIT_AUTO_SUSPEND)
             continue;
 
         ret ++;

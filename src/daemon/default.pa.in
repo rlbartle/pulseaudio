@@ -55,7 +55,7 @@ ifelse(@HAVE_MKFIFO@, 1, [dnl
 ### Automatically load driver modules depending on the hardware available
 ifelse(@HAVE_UDEV@, 1, [dnl
 .ifexists module-udev-detect@PA_SOEXT@
-load-module module-udev-detect
+load-module module-udev-detect tsched=0
 .else
 ], @HAVE_COREAUDIO@, 1, [dnl
 .ifexists module-coreaudio-detect@PA_SOEXT@
@@ -84,7 +84,7 @@ load-module module-jackdbus-detect channels=2
 ifelse(@HAVE_BLUEZ@, 1, [dnl
 ### Automatically load driver modules for Bluetooth hardware
 .ifexists module-bluetooth-policy@PA_SOEXT@
-load-module module-bluetooth-policy
+load-module module-bluetooth-policy a2dp_source=0 auto_switch=0
 .endif
 
 .ifexists module-bluetooth-discover@PA_SOEXT@

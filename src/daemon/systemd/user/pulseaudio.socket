@@ -1,6 +1,6 @@
 [Unit]
 Description=Sound System
-ConditionUser=!root
+ConditionUser=axium
 
 [Socket]
 Priority=6

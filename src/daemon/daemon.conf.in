@@ -53,7 +53,7 @@ ifelse(@HAVE_DBUS@, 1, [dnl
 ; log-time = no
 ; log-backtrace = 0
 
-; resample-method = speex-float-1
+resample-method = soxr-vhq
 ; avoid-resampling = false
 ; enable-remixing = yes
 ; remixing-use-all-sink-channels = yes
@@ -61,7 +61,7 @@ ifelse(@HAVE_DBUS@, 1, [dnl
 ; remixing-consume-lfe = no
 ; lfe-crossover-freq = 0
 
-; flat-volumes = no
+flat-volumes = no
 
 ; rescue-streams = yes
 
@@ -89,8 +89,8 @@ ifelse(@HAVE_SYS_RESOURCE_H@, 1, [dnl
 ; default-sample-channels = 2
 ; default-channel-map = front-left,front-right
 
-; default-fragments = 4
-; default-fragment-size-msec = 25
+default-fragments = 4
+default-fragment-size-msec = 8
 
 ; enable-deferred-volume = yes
 ; deferred-volume-safety-margin-usec = 8000

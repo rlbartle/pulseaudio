@@ -515,6 +515,7 @@ static int sink_set_state(pa_sink *s, pa_sink_state_t state, pa_suspend_cause_t 
 
         PA_IDXSET_FOREACH(i, s->inputs, idx)
             if (s->state == PA_SINK_SUSPENDED &&
+                suspend_cause != PA_SUSPEND_INTERNAL &&
                 (i->flags & PA_SINK_INPUT_KILL_ON_SUSPEND))
                 pa_sink_input_kill(i);
             else if (i->suspend)
@@ -1488,6 +1489,7 @@ void pa_sink_reconfigure(pa_sink *s, pa_sample_spec *spec, bool passthrough) {
     bool default_rate_is_usable = false;
     bool alternate_rate_is_usable = false;
     bool avoid_resampling = s->avoid_resampling;
+	bool forced_reconfigure = s->state == PA_SINK_SUSPENDED && s->suspend_cause == PA_SUSPEND_INTERNAL;
 
     if (pa_sample_spec_equal(spec, &s->sample_spec))
         return;
@@ -1529,7 +1531,7 @@ void pa_sink_reconfigure(pa_sink *s, pa_sample_spec *spec, bool passthrough) {
             desired_spec.rate = spec->rate;
         desired_spec.format = spec->format;
 
-    } else if (default_rate == spec->rate || alternate_rate == spec->rate) {
+    } else if ((default_rate == spec->rate || alternate_rate == spec->rate) && !forced_reconfigure) {
         /* We can directly try to use this rate */
         desired_spec.rate = spec->rate;
 
@@ -1539,24 +1541,48 @@ void pa_sink_reconfigure(pa_sink *s, pa_sample_spec *spec, bool passthrough) {
         /* See if we can pick a rate that results in less resampling effort */
         if (default_rate % 11025 == 0 && spec->rate % 11025 == 0)
             default_rate_is_usable = true;
-        if (default_rate % 4000 == 0 && spec->rate % 4000 == 0)
+        else if (default_rate % 4000 == 0 && spec->rate % 4000 == 0)
             default_rate_is_usable = true;
         if (alternate_rate % 11025 == 0 && spec->rate % 11025 == 0)
             alternate_rate_is_usable = true;
-        if (alternate_rate % 4000 == 0 && spec->rate % 4000 == 0)
+        else if (alternate_rate % 4000 == 0 && spec->rate % 4000 == 0)
             alternate_rate_is_usable = true;
 
         if (alternate_rate_is_usable && !default_rate_is_usable)
             desired_spec.rate = alternate_rate;
-        else
+        else if (!alternate_rate_is_usable && default_rate_is_usable)
             desired_spec.rate = default_rate;
     }
 
     if (pa_sample_spec_equal(&desired_spec, &s->sample_spec) && passthrough == pa_sink_is_passthrough(s))
         return;
 
-    if (!passthrough && pa_sink_used_by(s) > 0)
+    if (!passthrough && pa_sink_used_by(s) > 0 && !forced_reconfigure)
         return;
+
+#ifdef FORCE_COMMON_SAMPLE_RATE_FOR_ALL_SINKS
+	//This is to avoid a ping-pong effect of back and forth rate changes when multiple sinks are progressing through
+	//playlists with different sample rates.
+	if (!forced_reconfigure) {
+		pa_sink *sink;
+		PA_IDXSET_FOREACH(sink, s->core->sinks, idx) {
+			if (sink != s && PA_SINK_IS_OPENED(sink->state) && sink->sample_spec.rate != s->sample_spec.rate) {
+				//The other sink is active and configured with a different sample rate than this sink.
+				//Check if the other sink has any input with resampling enabled - if so then that rate should be adopted
+				//by this sink instead..
+				uint32_t idx2;
+				PA_IDXSET_FOREACH(i, sink->inputs, idx2) {
+					if (PA_SINK_INPUT_IS_LINKED(i->state) && pa_sink_input_get_resample_method(i) != PA_RESAMPLER_INVALID) {
+						desired_spec.rate = sink->sample_spec.rate;
+						break;
+					}
+				}
+				if (desired_spec.rate == sink->sample_spec.rate)
+					break;
+			}
+		}
+	}
+#endif
 
     pa_log_debug("Suspending sink %s due to changing format, desired format = %s rate = %u",
                  s->name, pa_sample_format_to_string(desired_spec.format), desired_spec.rate);
@@ -1570,11 +1596,29 @@ void pa_sink_reconfigure(pa_sink *s, pa_sample_spec *spec, bool passthrough) {
     pa_log_info("Reconfigured successfully");
 
     PA_IDXSET_FOREACH(i, s->inputs, idx) {
-        if (i->state == PA_SINK_INPUT_CORKED)
+        if (i->state == PA_SINK_INPUT_CORKED || forced_reconfigure)
             pa_sink_input_update_resampler(i, true);
     }
 
     pa_sink_suspend(s, false, PA_SUSPEND_INTERNAL);
+
+#ifdef FORCE_COMMON_SAMPLE_RATE_FOR_ALL_SINKS
+	//Forcibly link rates used by all sinks in the system (useful for cases where the sinks share and adjust the sane clock source)
+	// Iterate all other sinks and adjust them to match..
+	if (!forced_reconfigure) {
+		pa_sink *sink;
+		PA_IDXSET_FOREACH(sink, s->core->sinks, idx) {
+			if (sink != s && PA_SINK_IS_LINKED(sink->state)) {
+				pa_log_info("Forcing reconfiguration of sink %s", sink->name);
+				pa_sink_suspend(sink, true, PA_SUSPEND_INTERNAL);
+				pa_sample_spec sink_spec = sink->sample_spec;
+				sink_spec.rate = desired_spec.rate;
+				pa_sink_reconfigure(sink, &sink_spec, pa_sink_is_passthrough(sink));
+				pa_sink_suspend(sink, false, PA_SUSPEND_INTERNAL);
+			}
+		}
+	}
+#endif
 }
 
 /* Called from main thread */
@@ -2542,10 +2586,10 @@ unsigned pa_sink_check_suspend(pa_sink *s, pa_sink_input *ignore_input, pa_sourc
         if (!PA_SINK_INPUT_IS_LINKED(i->state))
             continue;
 
-        if (i->state == PA_SINK_INPUT_CORKED)
+        if (i->state == PA_SINK_INPUT_CORKED && (i->flags & PA_SINK_INPUT_DONT_AUTO_SUSPEND) == 0)
             continue;
 
-        if (i->flags & PA_SINK_INPUT_DONT_INHIBIT_AUTO_SUSPEND)
+        if ((i->flags & (PA_SINK_INPUT_DONT_INHIBIT_AUTO_SUSPEND | PA_SINK_INPUT_DONT_AUTO_SUSPEND)) == PA_SINK_INPUT_DONT_INHIBIT_AUTO_SUSPEND)
             continue;
 
         ret ++;

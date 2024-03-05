@@ -2335,8 +2335,24 @@ static void handle_transport_state_change(struct userdata *u, struct pa_bluetoot
      * If codec switching is in progress, transport state change should not
      * make profile unavailable.
      */
-    if (!t->device->codec_switching_in_progress)
-        pa_card_profile_set_available(cp, transport_state_to_availability(t->state));
+    if (!t->device->codec_switching_in_progress) {
+		bool set_available = true;
+		//Workaround annoying inter-track issue, where the playback state goes idle for a moment - this results in the source
+		//being removed as the card profile availability is set to off.
+		if (t->state == PA_BLUETOOTH_TRANSPORT_STATE_IDLE && u->source && 
+			(u->source->thread_info.state == PA_SOURCE_RUNNING || u->source->thread_info.state == PA_SOURCE_IDLE)) {
+			pa_source_output *o;
+			uint32_t idx;
+			PA_IDXSET_FOREACH(o, u->source->outputs, idx) {
+				if (PA_SOURCE_OUTPUT_IS_LINKED(o->state) && (o->flags & PA_SOURCE_OUTPUT_DONT_AUTO_SUSPEND) != 0) {
+					set_available = false;
+					break;
+				}
+			}
+		}
+		if (set_available)
+			pa_card_profile_set_available(cp, transport_state_to_availability(t->state));
+	}
 
     /* Update port availability */
     pa_assert_se(port = pa_hashmap_get(u->card->ports, u->output_port_name));
