@@ -123,7 +123,7 @@ static void timeout_callback(pa_mainloop_api*a, pa_time_event* e, const struct t
     to->callback(to, to->userdata);
 }
 
-static AvahiTimeout* timeout_new(const AvahiPoll *api, const struct timeval *tv, AvahiTimeoutCallback callback, void *userdata) {
+static AvahiTimeout* timeout_new(const AvahiPoll *api, const struct AvahiTimeVal *tv, AvahiTimeoutCallback callback, void *userdata) {
     pa_avahi_poll *p;
     AvahiTimeout *t;
 
@@ -136,19 +136,19 @@ static AvahiTimeout* timeout_new(const AvahiPoll *api, const struct timeval *tv,
     t->callback = callback;
     t->userdata = userdata;
 
-    t->time_event = tv ? p->mainloop->time_new(p->mainloop, tv, timeout_callback, t) : NULL;
+    t->time_event = tv ? p->mainloop->time_new(p->mainloop, (struct timeval *)tv, timeout_callback, t) : NULL;
 
     return t;
 }
 
-static void timeout_update(AvahiTimeout *t, const struct timeval *tv) {
+static void timeout_update(AvahiTimeout *t, const struct AvahiTimeVal *tv) {
 
     pa_assert(t);
 
     if (t->time_event && tv)
-        t->avahi_poll->mainloop->time_restart(t->time_event, tv);
+        t->avahi_poll->mainloop->time_restart(t->time_event, (struct timeval *)tv);
     else if (!t->time_event && tv)
-        t->time_event = t->avahi_poll->mainloop->time_new(t->avahi_poll->mainloop, tv, timeout_callback, t);
+        t->time_event = t->avahi_poll->mainloop->time_new(t->avahi_poll->mainloop, (struct timeval *)tv, timeout_callback, t);
     else if (t->time_event && !tv) {
         t->avahi_poll->mainloop->time_free(t->time_event);
         t->time_event = NULL;
