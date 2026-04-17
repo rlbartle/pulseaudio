@@ -26,7 +26,6 @@
 
 #include <pulsecore/macro.h>
 
-#include <avahi-common/timeval.h>
 #include "avahi-wrap.h"
 
 typedef struct {
@@ -124,7 +123,7 @@ static void timeout_callback(pa_mainloop_api*a, pa_time_event* e, const struct t
     to->callback(to, to->userdata);
 }
 
-static AvahiTimeout* timeout_new(const AvahiPoll *api, const struct AvahiTimeVal *tv, AvahiTimeoutCallback callback, void *userdata) {
+static AvahiTimeout* timeout_new(const AvahiPoll *api, const AvahiTimeVal *tv, AvahiTimeoutCallback callback, void *userdata) {
     pa_avahi_poll *p;
     AvahiTimeout *t;
 
@@ -142,7 +141,7 @@ static AvahiTimeout* timeout_new(const AvahiPoll *api, const struct AvahiTimeVal
     return t;
 }
 
-static void timeout_update(AvahiTimeout *t, const struct AvahiTimeVal *tv) {
+static void timeout_update(AvahiTimeout *t, const AvahiTimeVal *tv) {
 
     pa_assert(t);
 
