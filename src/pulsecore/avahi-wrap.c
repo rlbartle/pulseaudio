@@ -26,6 +26,7 @@
 
 #include <pulsecore/macro.h>
 
+#include <avahi-common/timeval.h>
 #include "avahi-wrap.h"
 
 typedef struct {
