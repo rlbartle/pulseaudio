@@ -190,4 +190,3 @@ void pa_avahi_poll_free(AvahiPoll *api) {
 
     pa_xfree(p);
 }
-
